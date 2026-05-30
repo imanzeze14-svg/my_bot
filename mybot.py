@@ -1,16 +1,15 @@
 import telebot
 import os
 import requests
-from bs4 import BeautifulSoup
+import re
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 
-# تنظیم توکن فعال شما
+# تنظیم توکن جدید شما
 TOKEN = "8642386388:AAEn2ZyioGlP8aFkGTHxM8URj3Lv0m9EfQA"
 bot = telebot.TeleBot(TOKEN)
 
-# هدر سفارشی برای دور زدن سیستم امنیتی سایت‌ها (جا زدن ربات به عنوان مرورگر انسان)
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
@@ -18,33 +17,28 @@ HEADERS = {
 def get_official_news(brand):
     try:
         if brand == "motorola":
-            # لینک بخش اخبار یا محصولات رسمی موتورولا سولوشنز
             url = "https://www.motorolasolutions.com/en_us/newsroom.html"
             response = requests.get(url, headers=HEADERS, timeout=15)
             if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                # پیدا کردن تیترهای اخبار (این بخش بر اساس ساختار سایت طراحی می‌شود)
-                titles = [t.text.strip() for t in soup.find_all('h3')[:3]]
+                titles = re.findall(re.compile(r'<h3[^>]*>(.*?)</h3>', re.DOTALL), response.text)[:3]
                 if titles:
                     result = "👑 **آخرین عناوین رسمی از سایت Motorola Solutions:**\n\n"
                     for i, title in enumerate(titles, 1):
-                        result += f"{i}️⃣ {title}\n\n"
-                    result += "💡 _این اطلاعات مستقیماً و زنده از سایت رسمی موتورولا استخراج شده است._"
+                        clean_title = re.sub('<[^<]+?>', '', title).strip()
+                        result += f"{i}️⃣ {clean_title}\n\n"
                     return result
             return "⚠️ سایت موتورولا در حال حاضر اجازه استخراج دیتای زنده را نداد."
 
         elif brand == "hytera":
-            # لینک بخش اخبار یا محصولات رسمی هایترا
             url = "https://www.hytera.com/en/media-center/news.html"
             response = requests.get(url, headers=HEADERS, timeout=15)
             if response.status_code == 200:
-                soup = BeautifulSoup(response.text, 'html.parser')
-                titles = [t.text.strip() for t in soup.find_all('h4')[:3]]
+                titles = re.findall(re.compile(r'<h4[^>]*>(.*?)</h4>', re.DOTALL), response.text)[:3]
                 if titles:
                     result = "⚡ **آخرین عناوین رسمی از سایت Hytera:**\n\n"
                     for i, title in enumerate(titles, 1):
-                        result += f"{i}️⃣ {title}\n\n"
-                    result += "💡 _این اطلاعات مستقیماً و زنده از سایت رسمی هایترا استخراج شده است._"
+                        clean_title = re.sub('<[^<]+?>', '', title).strip()
+                        result += f"{i}️⃣ {clean_title}\n\n"
                     return result
             return "⚠️ سایت هایترا در حال حاضر پاسخ نداد."
 
@@ -63,7 +57,7 @@ def send_welcome(message):
     
     bot.send_message(
         message.chat.id, 
-        f"سلام ایمان جان! ربات مستقیماً به سایت‌های رسمی متصل شد. 🛰\n\nروی هر دکمه کلیک کنی، ربات با هویت یک کاربر واقعی وارد سایت مرجع شده و جدیدترین عناوین را برایت می‌آورد:", 
+        f"سلام ایمان جان! ربات بدون نیاز به ابزار اضافی فعال شد. 🛰\n\nروی هر دکمه کلیک کنی، ربات مستقیماً وارد سایت مرجع شده و جدیدترین عناوین را برایت می‌آورد:", 
         reply_markup=markup
     )
 
@@ -95,7 +89,7 @@ class DummyServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
         self.end_headers()
-        self.wfile.write(b"Official Scraper Bot is Running!")
+        self.wfile.write(b"Official Fast Scraper Bot is Running!")
 
 def run_server():
     port = int(os.environ.get("PORT", 8080))
