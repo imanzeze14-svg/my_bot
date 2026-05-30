@@ -5,14 +5,13 @@ from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
 from http.server import BaseHTTPRequestHandler, HTTPServer
 import threading
 
-# ۱. تنظیمات توکن ربات
-TOKEN = "8642386388:AAEhGZn73Coiv6bNysv96Jxya4SSb73fw2E"
+# تنظیم توکن جدید
+TOKEN = "8642386388:AAEn2ZyioGlP8aFkGTHxM8URj3Lv0m9EfQA"
 bot = telebot.TeleBot(TOKEN)
 
 # تابع هوشمند برای گرفتن آخرین اطلاعات زنده و واقعی از وب به زبان فارسی
 def get_live_radio_info(search_type):
     try:
-        # استفاده از یک API هوشمند و بدون تحریم که مستقیماً وب را تحلیل می‌کند
         if search_type == "motorola":
             prompt = "Latest Motorola handheld radio solutions and new models released recently. provide brief specs in Persian."
         else:
@@ -26,7 +25,7 @@ def get_live_radio_info(search_type):
     except Exception as e:
         return "❌ خطا در اتصال به شبکه جهانی اینترنت."
 
-# ۲. منوی اصلی ربات
+# منوی اصلی ربات
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = InlineKeyboardMarkup()
@@ -42,7 +41,7 @@ def send_welcome(message):
         reply_markup=markup
     )
 
-# ۳. پردازش کلیک روی دکمه‌ها و سرچ زنده در کل سایت‌ها
+# پردازش کلیک روی دکمه‌ها
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     back_markup = InlineKeyboardMarkup()
@@ -67,7 +66,7 @@ def callback_query(call):
         bot.delete_message(call.message.chat.id, call.message.message_id)
         send_welcome(call.message)
 
-# ۴. وب‌سرور برای زنده نگه داشتن سیستم در رندر
+# وب‌سرور برای رندر
 class DummyServer(BaseHTTPRequestHandler):
     def do_GET(self):
         self.send_response(200)
@@ -81,4 +80,3 @@ def run_server():
 
 threading.Thread(target=run_server, daemon=True).start()
 bot.infinity_polling()
-
