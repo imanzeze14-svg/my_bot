@@ -3,99 +3,107 @@ import os
 import requests
 import re
 from telebot.types import InlineKeyboardMarkup, InlineKeyboardButton
-from http.server import BaseHTTPRequestHandler, HTTPServer
-import threading
+from flask import Flask, request
 
-# تنظیم توکن جدید شما
+# ۱. تنظیمات اصلی ربات
 TOKEN = "8642386388:AAEn2ZyioGlP8aFkGTHxM8URj3Lv0m9EfQA"
-bot = telebot.TeleBot(TOKEN)
+bot = telebot.TeleBot(TOKEN, threaded=False)
+
+# ساخت سرور وب با Flask برای حذف کامل ارور 409
+app = Flask(__name__)
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 }
 
-def get_official_news(brand):
+# تابع جستجوی مستقیم در سایت‌های مرجع
+def search_radio_website(brand):
     try:
         if brand == "motorola":
             url = "https://www.motorolasolutions.com/en_us/newsroom.html"
-            response = requests.get(url, headers=HEADERS, timeout=15)
+            response = requests.get(url, headers=HEADERS, timeout=10)
             if response.status_code == 200:
                 titles = re.findall(re.compile(r'<h3[^>]*>(.*?)</h3>', re.DOTALL), response.text)[:3]
                 if titles:
-                    result = "👑 **آخرین عناوین رسمی از سایت Motorola Solutions:**\n\n"
+                    result = "👑 **[IMAN-BOT] عناوین استخراج شده از Motorola Solutions:**\n\n"
                     for i, title in enumerate(titles, 1):
                         clean_title = re.sub('<[^<]+?>', '', title).strip()
                         result += f"{i}️⃣ {clean_title}\n\n"
                     return result
-            return "⚠️ سایت موتورولا در حال حاضر اجازه استخراج دیتای زنده را نداد."
+            return "⚠️ سایت موتورولا در حال حاضر اجازه دسترسی به دیتای زنده را نداد."
 
         elif brand == "hytera":
             url = "https://www.hytera.com/en/media-center/news.html"
-            response = requests.get(url, headers=HEADERS, timeout=15)
+            response = requests.get(url, headers=HEADERS, timeout=10)
             if response.status_code == 200:
                 titles = re.findall(re.compile(r'<h4[^>]*>(.*?)</h4>', re.DOTALL), response.text)[:3]
                 if titles:
-                    result = "⚡ **آخرین عناوین رسمی از سایت Hytera:**\n\n"
+                    result = "⚡ **[IMAN-BOT] عناوین استخراج شده از Hytera:**\n\n"
                     for i, title in enumerate(titles, 1):
                         clean_title = re.sub('<[^<]+?>', '', title).strip()
                         result += f"{i}️⃣ {clean_title}\n\n"
                     return result
             return "⚠️ سایت هایترا در حال حاضر پاسخ نداد."
 
-    except Exception as e:
-        return "❌ خطا در اتصال مستقیم به سرور سایت مرجع."
+    except Exception:
+        return "❌ خطا در برقراری ارتباط زنده با سایت مرجع."
 
-# منوی اصلی ربات
+# ۲. دستور شروع ربات
 @bot.message_handler(commands=['start'])
 def send_welcome(message):
     markup = InlineKeyboardMarkup()
     markup.row_width = 1
     markup.add(
-        InlineKeyboardButton("👑 استخراج مستقیم از سایت Motorola", callback_data="get_motorola"),
-        InlineKeyboardButton("⚡ استخراج مستقیم از سایت Hytera", callback_data="get_hytera")
+        InlineKeyboardButton("👑 استخراج زنده از موتورولا", callback_data="btn_motorola"),
+        InlineKeyboardButton("⚡ استخراج زنده از هایترا", callback_data="btn_hytera")
     )
     
     bot.send_message(
         message.chat.id, 
-        f"سلام ایمان جان! ربات بدون نیاز به ابزار اضافی فعال شد. 🛰\n\nروی هر دکمه کلیک کنی، ربات مستقیماً وارد سایت مرجع شده و جدیدترین عناوین را برایت می‌آورد:", 
+        "🤖 به ربات اختصاصی **IMAN-BOT** خوش آمدید.\n\n"
+        "این سیستم مستقیماً به سایت‌های مرجع متصل است. لطفاً هدف جستجو را انتخاب کنید:", 
+        parse_mode="Markdown",
         reply_markup=markup
     )
 
-# پردازش کلیک دکمه‌ها
+# ۳. پردازش کلیک روی دکمه‌ها
 @bot.callback_query_handler(func=lambda call: True)
 def callback_query(call):
     back_markup = InlineKeyboardMarkup()
-    back_markup.add(InlineKeyboardButton("🔙 بازگشت", callback_data="back_to_main"))
+    back_markup.add(InlineKeyboardButton("🔙 بازگشت به منوی اصلی", callback_data="btn_main"))
 
-    if call.data == "get_motorola":
-        bot.answer_callback_query(call.id, "اتصال به موتورولا... 📡")
-        bot.send_message(call.message.chat.id, "🔍 در حال ورود به سایت رسمی Motorola Solutions...")
-        res = get_official_news("motorola")
-        bot.send_message(call.message.chat.id, res, reply_markup=back_markup)
+    if call.data == "btn_motorola":
+        bot.answer_callback_query(call.id, "در حال اتصال...")
+        bot.send_message(call.message.chat.id, "🔍 در حال جستجوی زنده در سرور Motorola Solutions...")
+        res = search_radio_website("motorola")
+        bot.send_message(call.message.chat.id, res, parse_mode="Markdown", reply_markup=back_markup)
         
-    elif call.data == "get_hytera":
-        bot.answer_callback_query(call.id, "اتصال به هایترا... ⚡")
-        bot.send_message(call.message.chat.id, "🔍 در حال ورود به سایت رسمی Hytera...")
-        res = get_official_news("hytera")
-        bot.send_message(call.message.chat.id, res, reply_markup=back_markup)
+    elif call.data == "btn_hytera":
+        bot.answer_callback_query(call.id, "در حال اتصال...")
+        bot.send_message(call.message.chat.id, "🔍 در حال جستجوی زنده در سرور Hytera...")
+        res = search_radio_website("hytera")
+        bot.send_message(call.message.chat.id, res, parse_mode="Markdown", reply_markup=back_markup)
         
-    elif call.data == "back_to_main":
+    elif call.data == "btn_main":
         bot.answer_callback_query(call.id)
         bot.delete_message(call.message.chat.id, call.message.message_id)
         send_welcome(call.message)
 
-# وب‌سرور رندر
-class DummyServer(BaseHTTPRequestHandler):
-    def do_GET(self):
-        self.send_response(200)
-        self.end_headers()
-        self.wfile.write(b"Official Fast Scraper Bot is Running!")
+# ۴. تنظیمات ورودی وب‌هوک (تنظیمات استاندارد سرور رندر)
+@app.route('/' + TOKEN, habits=['POST'])
+def getMessage():
+    json_string = request.get_data().decode('utf-8')
+    update = telebot.types.Update.de_json(json_string)
+    bot.process_new_updates([update])
+    return "!", 200
 
-def run_server():
-    port = int(os.environ.get("PORT", 8080))
-    server = HTTPServer(('0.0.0.0', port), DummyServer)
-    server.serve_forever()
+@app.route("/")
+def webhook():
+    bot.remove_webhook()
+    # آدرس اینترنتی پروژه شما در رندر به صورت خودکار جایگزین می‌شود
+    render_url = f"https://{os.environ.get('RENDER_EXTERNAL_HOSTNAME')}/{TOKEN}"
+    bot.set_webhook(url=render_url)
+    return "IMAN-BOT IS LIVE!", 200
 
-threading.Thread(target=run_server, daemon=True).start()
-bot.infinity_polling()
-
+if __name__ == "__main__":
+    app.run(host="0.0.0.0", port=int(os.environ.get('PORT', 8080)))
